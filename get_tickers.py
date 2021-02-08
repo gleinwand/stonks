@@ -8,6 +8,8 @@ from progress.bar import Bar
 BASE_DIR = "historical_stock_prices"
 START_DATE = "2019-06-01"
 END_DATE = datetime.today().strftime('%Y-%m-%d')
+EXCLUDE_MICS = ['OOTC','OTCM','ARCX','BATS']
+INCLUDE_MICS = ['XNGS','XNYS','XNCM','XNMS','XASE']
 
 print(f"Getting data between {START_DATE} and {END_DATE}")
 
@@ -16,7 +18,16 @@ fclient = fh.Client(api_key=config.api_key)
 
 # Get all US symbols
 symbols=fclient.stock_symbols('US')
-symbols_list=[s['symbol'] for s in symbols]
+mics={}
+types={}
+for symb in symbols:
+    mics[symb['mic']] = mics.get(symb['mic'], 0) + 1
+    types[symb['type']] = types.get(symb['type'], 0) + 1
+
+symbols_list=[]
+for s in symbols:
+    if s['type'] == 'Common Stock' and s['mic'] not in EXCLUDE_MICS:
+        symbols_list.append(s['symbol'])
 
 # TODO: Jk, looks like trying to get it all at once leads to death
 #data=yf.download(symbols_list, START_DATE, END_DATE,threads=2)
@@ -33,7 +44,7 @@ symbols_list=[s['symbol'] for s in symbols]
 #bar.finish()
 
 # Download historical data from yfinance
-bar = Bar('downloading', max=len(symbols))
+bar = Bar('downloading', max=len(symbols_list))
 for s in symbols_list:
     data = yf.download(s, START_DATE, END_DATE, progress=False)
     if not data.empty:
