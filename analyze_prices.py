@@ -20,7 +20,8 @@ for file in files:
 
     # Get mean price before COVID
     df_pre=df.loc[(df['Date'] >= PRE_COVID_START) & (df['Date'] <= PRE_COVID_END)]
-    df_pre_mean=df_pre.median()['Close']
+    df_pre_median=df_pre.median()['Close']
+    df_pre_mean=df_pre.mean()['Close']
 
     # Get min price during covid
     max_date = df['Date'].max()
@@ -43,11 +44,11 @@ for file in files:
         
         percent_covid_dip=100*(df_post_min-df_pre_mean)/df_pre_mean
         recovery_percent=100*(current_price-df_post_min)/df_pre_mean
-        data.append([ticker, df_post_vol, df_pre_mean, df_post_min, current_price, -1*round(percent_covid_dip,2), round(recovery_percent,2)])
+        data.append([ticker, round(df_pre_median,2), round(df_pre_mean,2), round(df_post_min,2), round(current_price,2), -1*round(percent_covid_dip,2), round(recovery_percent,2)])
     bar.next()
 bar.finish()
 
-final_df=pd.DataFrame(data, columns=['Ticker','MedianVolumePostCovid','PreCovidMedian','CovidMin','Current','CovidDipPercent','RecoveryPercent'])
-sorted_df=final_df.sort_values(by=['RecoveryPercent'],ascending=True,)
+final_df=pd.DataFrame(data, columns=['Ticker','PreCovidMedianPrice','PreCovidMeanPrice','CovidMinPrice','CurrentPrice','PriceDipPercent','PriceRecoveryPercent'])
+sorted_df=final_df.sort_values(by=['PriceRecoveryPercent'],ascending=True,)
 print(tabulate(sorted_df, headers='keys', tablefmt='psql'))
 sorted_df.to_csv(f"results/covid_dip.csv")
