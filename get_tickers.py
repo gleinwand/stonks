@@ -1,13 +1,17 @@
 import config
 import finnhub as fh
 import yfinance as yf
-import csv
+import sqlite3
+import os
+import pandas as pd
 from datetime import datetime
 from progress.bar import Bar
 
+DB_FILE = "stock_prices.sqlite3"
 BASE_DIR = "historical_stock_prices"
-START_DATE = "2019-06-01"
-END_DATE = datetime.today().strftime('%Y-%m-%d')
+START_DATE = "2011-03-01"
+END_DATE = "2021-03-01"
+#END_DATE = datetime.today().strftime('%Y-%m-%d')
 EXCLUDE_MICS = ['OOTC','OTCM','ARCX','BATS']
 INCLUDE_MICS = ['XNGS','XNYS','XNCM','XNMS','XASE']
 
@@ -29,25 +33,26 @@ for s in symbols:
     if s['type'] == 'Common Stock' and s['mic'] not in EXCLUDE_MICS:
         symbols_list.append(s['symbol'])
 
-# TODO: Jk, looks like trying to get it all at once leads to death
-#data=yf.download(symbols_list, START_DATE, END_DATE,threads=2)
-#data.to_csv(BASE_DIR + "/all_stock_data.csv")
-#bar = Bar('downloading', max=len(symbols_list))
-#for s in symbols_list:
-#    sdata=data.loc[:, (slice(None), s)]
-#    sdata.columns = sdata.columns.droplevel(1)
-#    
-#    # Only include stocks that have at least one non-null value
-#    if sdata.notnull().values.any():
-#        sdata.to_csv(BASE_DIR + f"/{s}.csv",index=False)
-#    bar.next()
-#bar.finish()
+os.remove(DB_FILE)
+conn = sqlite3.connect(DB_FILE)
+
+dfs = []
 
 # Download historical data from yfinance
 bar = Bar('downloading', max=len(symbols_list))
 for s in symbols_list:
-    data = yf.download(s, START_DATE, END_DATE, progress=False)
-    if not data.empty:
-        data.to_csv(BASE_DIR + f"/{s}.csv")
+    try:
+        df = yf.download(s, START_DATE, END_DATE, progress=False)
+        if not df.empty:
+            df.rename(columns={"Adj Close": "Adj_Close"}, inplace = True)
+            df.insert(0, "Ticker", s)
+            rounded_df = df.round(2)
+            dfs.append(rounded_df)
+    except Exception as e:
+        print(f"Download failed for {s}:\n")
+        print(e)
     bar.next()
 bar.finish()
+
+final_df = pd.concat(dfs)
+final_df.to_sql('prices', con=conn, if_exists='replace', index = True)

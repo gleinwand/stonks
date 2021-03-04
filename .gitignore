@@ -129,4 +129,5 @@ dmypy.json
 .pyre/
 
 # config
+stock_prices.sqlite3
 config.py
